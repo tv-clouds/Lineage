@@ -22,12 +22,11 @@ const servers = [
 ];
 
 async function fetchAllPrices() {
-    // 方案 A：直接存放于根目录
-    const historyFile = 'history.json'; 
+    const historyFile = 'history.json';
     const dataFile = 'data.json';
     let historyData = [];
 
-    // 加载已有历史
+    // 1. 读取历史
     if (fs.existsSync(historyFile)) {
         try {
             historyData = JSON.parse(fs.readFileSync(historyFile, 'utf8'));
@@ -40,11 +39,10 @@ async function fetchAllPrices() {
         data: []
     };
 
+    // 2. 循环抓取
     for (const server of servers) {
         try {
-            // 随机延迟防止被封
             await new Promise(r => setTimeout(r, 2000 + Math.random() * 2000));
-            
             const res = await axios.get(server.url, {
                 headers: { 
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -57,7 +55,7 @@ async function fetchAllPrices() {
             let buy = "N/A";
             let sell = "N/A";
 
-            // --- 1. 抓取【买入价格】 ---
+            // 抓取逻辑
             const buyDirect = html.match(/1[万萬]金\s*=\s*([\d.]+)\s*元/);
             const buyExchange = html.match(/1元\s*=\s*([\d.]+)\s*[万萬]金/);
 
@@ -68,7 +66,6 @@ async function fetchAllPrices() {
                 if (rate > 0) buy = (1 / rate).toFixed(4);
             }
 
-            // --- 2. 抓取【卖出价格】 ---
             if (html.includes('商家入驻平台收货显示此区域') || html.includes('receve-swiper')) {
                 const sellDirect = html.match(/([\d.]+)\s*元\s*\/[万萬]金/);
                 const receiveSection = html.match(/id="receve-swiper"[\s\S]*?1元\s*=\s*([\d.]+)\s*[万萬]金/);
@@ -81,12 +78,10 @@ async function fetchAllPrices() {
                 }
             }
 
-            // --- 3. 数据校验与继承 ---
+            // 数据校验与继承
             const prev = lastBatch.find(s => s.server === server.name);
-
             if (buy !== "N/A" && parseFloat(buy) > 25) buy = prev ? prev.buy : "N/A";
             if (sell !== "N/A" && parseFloat(sell) > 25) sell = prev ? prev.sell : "N/A";
-
             if (buy === "N/A" && prev) buy = prev.buy;
             if (sell === "N/A" && prev) sell = prev.sell;
 
@@ -94,20 +89,19 @@ async function fetchAllPrices() {
             console.log(`[${server.name}] Buy: ${buy}, Sell: ${sell}`);
 
         } catch (e) {
-            console.error(`抓取 ${server.name} 出错:`, e.message);
+            console.error(`Error ${server.name}:`, e.message);
             const prev = lastBatch.find(s => s.server === server.name);
             currentBatch.data.push(prev || { server: server.name, buy: "N/A", sell: "N/A" });
         }
     }
 
-    // 保存文件到根目录
+    // 3. 保存结果
     historyData.push(currentBatch);
-    // 限制历史记录数量，防止 JSON 文件过大
     if (historyData.length > 300) historyData.shift(); 
 
     fs.writeFileSync(historyFile, JSON.stringify(historyData, null, 2));
     fs.writeFileSync(dataFile, JSON.stringify(currentBatch, null, 2));
-    console.log("数据更新完成，文件已存至根目录。");
+    console.log("更新完成！");
 }
 
 fetchAllPrices();
