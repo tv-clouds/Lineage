@@ -2,8 +2,8 @@ name: Lineage Price 每小时币价更新
 
 on:
   schedule:
-    - cron: '5 * * * *'
-  workflow_dispatch:
+    - cron: '5 * * * *' # 每小时第 5 分钟运行
+  workflow_dispatch:      # 支持手动点击运行
 
 concurrency:
   group: price-task
@@ -23,7 +23,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'npm' # 自动缓存 node_modules
+          # 已移除 cache 选项，不再检查 lock 文件
 
       - name: 3. 安装依赖
         run: npm install
@@ -36,7 +36,7 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "Ando-Bot-Price"
           
-          # 确保添加根目录下的两个结果文件
+          # 添加生成的结果文件
           git add data.json history.json
           
           if git diff --cached --quiet; then
