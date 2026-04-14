@@ -2,8 +2,8 @@ name: Lineage Price 每小时币价更新
 
 on:
   schedule:
-    - cron: '5 * * * *' # 每小时第 5 分钟运行，避开整点拥堵
-  workflow_dispatch:      # 允许手动点击按钮立即更新
+    - cron: '5 * * * *'
+  workflow_dispatch:
 
 concurrency:
   group: price-task
@@ -23,24 +23,24 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'npm'
+          cache: 'npm' # 自动缓存 node_modules
 
-      - name: 3. 安装依赖并执行爬虫
-        run: |
-          # 直接在根目录运行
-          npm install axios
-          node fetch.js
+      - name: 3. 安装依赖
+        run: npm install
 
-      - name: 4. 提交并推送 JSON 数据
+      - name: 4. 执行爬虫脚本
+        run: node fetch.js
+
+      - name: 5. 提交并推送 JSON 数据
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "Ando-Bot-Price"
           
-          # 仅添加根目录下的 json 文件
-          git add *.json
+          # 确保添加根目录下的两个结果文件
+          git add data.json history.json
           
           if git diff --cached --quiet; then
-            echo "币价数据未变动，跳过本次提交。"
+            echo "数据未发生变动，跳过本次提交。"
           else
             git commit -m "Price Update: $(date '+%Y-%m-%d %H:%M')"
             git pull --rebase origin main
